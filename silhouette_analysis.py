@@ -1,43 +1,29 @@
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
-from typing import List, Dict
+import numpy as np
+from typing import Dict
 from collections import defaultdict
 
-class SilhouetteClusterAnalysis:
+class SilhouetteEvaluator:
     def __init__(self, random_state: int = 42, n_splits: int = 5):
         self.random_state = random_state
         self.n_splits = n_splits
-        self.vectorizer = TfidfVectorizer(
-            max_features=3000,
-            stop_words='english',
-            lowercase=True,
-            strip_accents='unicode'
-        )
-        self.scaler = StandardScaler(with_mean=False)
+        np.random.seed(random_state)
 
-    def preprocess_text(self, texts: List[str]) -> np.ndarray:
-        X = self.vectorizer.fit_transform(texts)
-        X_scaled = self.scaler.fit_transform(X)
-        return X_scaled
-
-    def evaluate_kmeans_cv(self, X: np.ndarray, k_range: range) -> Dict:
+    def evaluate(self, X: np.ndarray, k_range: range) -> Dict:
+        """Evaluate K-means using Silhouette score"""
         results = defaultdict(list)
-        X_dense = X.toarray()
-
         kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
 
         for k in k_range:
             print(f"Evaluating k={k}")
             fold_scores = []
 
-            for fold, (train_idx, val_idx) in enumerate(kf.split(X_dense)):
-                X_train = X_dense[train_idx]
-                X_val = X_dense[val_idx]
+            for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
+                X_train = X[train_idx]
+                X_val = X[val_idx]
 
                 kmeans = KMeans(
                     n_clusters=k,
@@ -62,6 +48,7 @@ class SilhouetteClusterAnalysis:
         return results
 
     def plot_metrics(self, results: Dict):
+        """Plot Silhouette scores"""
         plt.figure(figsize=(10, 6))
         valid_k = [k for k, s in zip(results['k_values'],
                                      results['silhouette_mean']) if s is not None]
@@ -88,15 +75,15 @@ class SilhouetteClusterAnalysis:
         plt.show()
 
     def find_optimal_k(self, results: Dict) -> int:
-        # Find recommended k based on highest silhouette score
+        """Find optimal K based on highest Silhouette score"""
         valid_scores = [s for s in results['silhouette_mean'] if s is not None]
         valid_std = [s for s in results['silhouette_std'] if s is not None]
         optimal_idx = np.argmax(valid_scores)
         optimal_k = results['k_values'][optimal_idx+1]
+
         for i, (score, std) in enumerate(zip(valid_scores, valid_std)):
             k = i + 2
             print(f"K={k}: Silhouette Score = {score:.4f} ± {std:.4f}")
 
         print(f"\nOptimal K based on highest Cross-Validated Silhouette Score: {optimal_k}")
         return optimal_k
-

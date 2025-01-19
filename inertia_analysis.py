@@ -1,57 +1,42 @@
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
-from typing import List, Dict
+import numpy as np
+from typing import Dict
 from collections import defaultdict
 
-class InertiaClusterAnalysis:
+class InertiaEvaluator:
     def __init__(self, random_state: int = 42, n_splits: int = 5):
         self.random_state = random_state
         self.n_splits = n_splits
-        self.vectorizer = TfidfVectorizer(
-            max_features=3000,
-            stop_words='english',
-            lowercase=True,
-            strip_accents='unicode'
-        )
-        self.scaler = StandardScaler(with_mean=False)
+        np.random.seed(random_state)
 
-    def preprocess_text(self, texts: List[str]) -> np.ndarray:
-        X = self.vectorizer.fit_transform(texts)
-        X_scaled = self.scaler.fit_transform(X)
-        return X_scaled
-
-    def evaluate_kmeans_cv(self, X: np.ndarray, k_range: range) -> Dict:
+    def evaluate(self, X: np.ndarray, k_range: range) -> Dict:
+        """Evaluate K-means using Inertia (within-cluster sum of squares)"""
         results = defaultdict(list)
-        X_dense = X.toarray()
-
         kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
+        fold_indices = list(kf.split(X))
 
         for k in k_range:
             print(f"Evaluating k={k}")
             fold_scores = []
 
-            for fold, (train_idx, val_idx) in enumerate(kf.split(X_dense)):
-                X_train = X_dense[train_idx]
-                X_val = X_dense[val_idx]
+            for train_idx, val_idx in fold_indices:
+                X_train = X[train_idx]
+                X_val = X[val_idx]
 
                 kmeans = KMeans(
                     n_clusters=k,
                     random_state=self.random_state,
-                    n_init=10
+                    n_init=5,
+                    max_iter=200,
+                    tol=1e-3,
+                    algorithm='elkan'
                 )
                 kmeans.fit(X_train)
 
-                val_labels = kmeans.predict(X_val)
-                val_centers = kmeans.cluster_centers_
-                val_inertia = 0
-
-                for i, label in enumerate(val_labels):
-                    val_inertia += np.sum((X_val[i] - val_centers[label]) ** 2)
-
+                # Calculate inertia on validation set
+                val_inertia = -kmeans.score(X_val) * X_val.shape[0]
                 fold_scores.append(val_inertia)
 
             results['k_values'].append(k)
@@ -61,6 +46,7 @@ class InertiaClusterAnalysis:
         return results
 
     def plot_metrics(self, results: Dict):
+        """Plot Inertia scores"""
         plt.figure(figsize=(10, 6))
         plt.errorbar(results['k_values'],
                      results['inertia_mean'],
@@ -83,7 +69,7 @@ class InertiaClusterAnalysis:
         plt.show()
 
     def find_optimal_k(self, results: Dict) -> int:
-        # Find recommended k based on percentage change in inertia
+        """Find optimal K based on inertia scores using elbow method"""
         inertia = np.array(results['inertia_mean'])
         inertia_changes = np.diff(inertia) / inertia[:-1] * 100
 
@@ -92,7 +78,6 @@ class InertiaClusterAnalysis:
             std = results['inertia_std'][i+1]
             print(f"Improvement from k={k-1} to k={k}: {abs(change):.2f}% ± {std:.2f}")
 
-        # Find elbow point using percentage change threshold
         threshold = 10
         optimal_idx = 0
         for i, change in enumerate(inertia_changes):
@@ -104,4 +89,3 @@ class InertiaClusterAnalysis:
         print(f"\nBased on Cross-Validated Elbow Method:")
         print(f"Selected k={optimal_k} as improvements become < {threshold}%")
         return optimal_k
-
