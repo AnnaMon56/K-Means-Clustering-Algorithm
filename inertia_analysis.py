@@ -2,13 +2,12 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
 from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
 from typing import List, Dict
 from collections import defaultdict
 
-class SilhouetteClusterAnalysis:
+class InertiaClusterAnalysis:
     def __init__(self, random_state: int = 42, n_splits: int = 5):
         self.random_state = random_state
         self.n_splits = n_splits
@@ -45,63 +44,64 @@ class SilhouetteClusterAnalysis:
                     n_init=10
                 )
                 kmeans.fit(X_train)
-                val_labels = kmeans.predict(X_val)
 
-                if k >= 2:
-                    silhouette = silhouette_score(X_val, val_labels)
-                    fold_scores.append(silhouette)
+                val_labels = kmeans.predict(X_val)
+                val_centers = kmeans.cluster_centers_
+                val_inertia = 0
+
+                for i, label in enumerate(val_labels):
+                    val_inertia += np.sum((X_val[i] - val_centers[label]) ** 2)
+
+                fold_scores.append(val_inertia)
 
             results['k_values'].append(k)
-            if k >= 2:
-                results['silhouette_mean'].append(np.mean(fold_scores))
-                results['silhouette_std'].append(np.std(fold_scores))
-            else:
-                results['silhouette_mean'].append(None)
-                results['silhouette_std'].append(None)
+            results['inertia_mean'].append(np.mean(fold_scores))
+            results['inertia_std'].append(np.std(fold_scores))
 
         return results
 
     def plot_metrics(self, results: Dict):
         plt.figure(figsize=(10, 6))
-
-        # Get valid k values and scores
-        valid_k = [k for k, s in zip(results['k_values'],
-                                     results['silhouette_mean']) if s is not None]
-        valid_scores = [s for s in results['silhouette_mean'] if s is not None]
-        valid_std = [s for s in results['silhouette_std'] if s is not None]
-
-        # Plot with error bars
-        plt.errorbar(valid_k, valid_scores,
-                     yerr=valid_std,
-                     fmt='ro-',
+        plt.errorbar(results['k_values'],
+                     results['inertia_mean'],
+                     yerr=results['inertia_std'],
+                     fmt='bo-',
                      capsize=5,
                      label=f'{self.n_splits}-fold CV')
 
-        plt.fill_between(valid_k,
-                         np.array(valid_scores) - np.array(valid_std),
-                         np.array(valid_scores) + np.array(valid_std),
-                         alpha=0.2, color='red')
+        plt.fill_between(results['k_values'],
+                         np.array(results['inertia_mean']) - np.array(results['inertia_std']),
+                         np.array(results['inertia_mean']) + np.array(results['inertia_std']),
+                         alpha=0.2, color='blue')
 
-        plt.title('Cross-Validated Silhouette Score vs K')
+        plt.title('Cross-Validated Elbow Method: Inertia vs K')
         plt.xlabel('Number of clusters (K)')
-        plt.ylabel('Silhouette Score')
+        plt.ylabel('Inertia')
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.legend()
         plt.tight_layout()
         plt.show()
 
     def find_optimal_k(self, results: Dict) -> int:
-        """Find optimal k using silhouette score with cross-validation"""
-        valid_scores = [s for s in results['silhouette_mean'] if s is not None]
-        valid_std = [s for s in results['silhouette_std'] if s is not None]
-        optimal_idx = np.argmax(valid_scores)
-        optimal_k = results['k_values'][optimal_idx+1]  # +1 because k starts at 2
+        # Find recommended k based on percentage change in inertia
+        inertia = np.array(results['inertia_mean'])
+        inertia_changes = np.diff(inertia) / inertia[:-1] * 100
 
-        # Print scores with standard deviations
-        for i, (score, std) in enumerate(zip(valid_scores, valid_std)):
-            k = i + 2  # Since silhouette starts from k=2
-            print(f"K={k}: Silhouette Score = {score:.4f} ± {std:.4f}")
+        for i, change in enumerate(inertia_changes):
+            k = results['k_values'][i+1]
+            std = results['inertia_std'][i+1]
+            print(f"Improvement from k={k-1} to k={k}: {abs(change):.2f}% ± {std:.2f}")
 
-        print(f"\nOptimal K based on highest Cross-Validated Silhouette Score: {optimal_k}")
+        # Find elbow point using percentage change threshold
+        threshold = 10
+        optimal_idx = 0
+        for i, change in enumerate(inertia_changes):
+            if abs(change) < threshold:
+                optimal_idx = i
+                break
+
+        optimal_k = results['k_values'][optimal_idx+1]
+        print(f"\nBased on Cross-Validated Elbow Method:")
+        print(f"Selected k={optimal_k} as improvements become < {threshold}%")
         return optimal_k
 

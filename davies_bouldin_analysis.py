@@ -15,7 +15,6 @@ class DaviesBouldinIndex:
         np.random.seed(random_state)
 
     def preprocess_text(self, texts: List[str], max_features: int = 1800) -> np.ndarray:
-        """Transform text data into TF-IDF features and scale them."""
         print(f"Vectorizing with {max_features} features...")
 
         self.vectorizer = TfidfVectorizer(
@@ -23,7 +22,7 @@ class DaviesBouldinIndex:
             stop_words='english',
             lowercase=True,
             strip_accents='unicode',
-            min_df=10  # Increased min_df to reduce features
+            min_df=10
         )
 
         X = self.vectorizer.fit_transform(texts)
@@ -31,18 +30,15 @@ class DaviesBouldinIndex:
 
         self.scaler = StandardScaler(with_mean=False)
         X_scaled = self.scaler.fit_transform(X)
-        return X_scaled.toarray()  # Convert to dense once
+        return X_scaled.toarray()
 
     def validate_kmeans(self, X: np.ndarray, k_range: range) -> Dict:
-        """Cross-validate the clustering results."""
         results = defaultdict(list)
-
-        # Pre-compute fold indices
         kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
         fold_indices = list(kf.split(X))
 
         for k in k_range:
-            print(f"Cross-validating k={k}")
+            print(f"Evaluating k={k}")
             fold_scores = []
 
             for train_idx, val_idx in fold_indices:
@@ -52,10 +48,10 @@ class DaviesBouldinIndex:
                 kmeans = KMeans(
                     n_clusters=k,
                     random_state=self.random_state,
-                    n_init=5,  # Reduced from 10
+                    n_init=5,
                     max_iter=200,
-                    tol=1e-3,  # Increased tolerance
-                    algorithm='elkan'  # Generally faster for k-means
+                    tol=1e-3,
+                    algorithm='elkan'
                 )
                 kmeans.fit(X_train)
                 val_labels = kmeans.predict(X_val)
@@ -78,7 +74,6 @@ class DaviesBouldinIndex:
         return results
 
     def plot_metrics(self, results: Dict):
-        """Plot cross-validation results."""
         plt.figure(figsize=(10, 6))
 
         valid_k = [k for k, s in zip(results['k_values'],
@@ -101,27 +96,26 @@ class DaviesBouldinIndex:
         plt.show()
 
     def find_optimal_k(self, results: Dict) -> int:
-        """Find optimal k and calculate improvements between successive K values."""
+        # Find recommended k based on Occam's Razor principle
+        # Using improvement percentages between k values
         valid_scores = [s for s in results['davies_bouldin_mean'] if s is not None]
         valid_std = [s for s in results['davies_bouldin_std'] if s is not None]
 
-        # Calculate percentage improvements
         improvements = []
         for i in range(len(valid_scores)-1):
             improvement = (valid_scores[i] - valid_scores[i+1]) / valid_scores[i] * 100
-            k = i + 3  # Since we start from k=2
+            k = i + 3
             print(f"Improvement from k={k-1} to k={k}: {improvement:.2f}% ± {valid_std[i]:.2f}")
             improvements.append(improvement)
 
-        # Find point where improvements become minimal
-        threshold = 5  # 5% improvement threshold
+        threshold = 5
         optimal_idx = 0
         for i, imp in enumerate(improvements):
             if imp < threshold:
                 optimal_idx = i
                 break
 
-        optimal_k = optimal_idx + 2  # +2 because we start from k=2
+        optimal_k = optimal_idx + 2
         print(f"\nBased on Occam's Razor principle:")
         print(f"Selected k={optimal_k} as improvements become < {threshold}%")
         return optimal_k
