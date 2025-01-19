@@ -112,39 +112,3 @@ class InertiaClusterAnalysis:
         print(f"Selected k={optimal_k} as improvements become < {threshold}%")
         return optimal_k
 
-def main():
-    try:
-        with open('text8.txt', 'r', encoding='utf-8') as file:
-            text = file.read()
-            words = text.split()
-            chunk_size = 40
-            texts = [' '.join(words[i:i+chunk_size])
-                     for i in range(0, len(words), chunk_size)
-                     if i+chunk_size < len(words)]
-            texts = texts[:10000]
-            print(f"Number of text chunks to analyze: {len(texts)}")
-    except FileNotFoundError:
-        print("Error: text8.txt file not found in the directory.")
-        return
-    except Exception as e:
-        print(f"Error reading file: {str(e)}")
-        return
-
-    # Initialize analyzer with cross-validation
-    analyzer = InertiaClusterAnalysis(n_splits=5)
-    print("\n=== Cross-Validated Inertia-based Analysis ===")
-
-    # Preprocess and evaluate
-    X = analyzer.preprocess_text(texts)
-    results = analyzer.evaluate_kmeans_cv(X, range(2, 18))
-
-    # Plot and find optimal K
-    analyzer.plot_metrics(results)
-    optimal_k = analyzer.find_optimal_k(results)
-
-if __name__ == "__main__":
-    print("Starting execution...")
-    try:
-        main()
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")

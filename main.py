@@ -1,5 +1,5 @@
 import numpy as np
-from davies_bouldin_analysis import TextClusteringAnalysis
+from davies_bouldin_analysis import DaviesBouldinIndex
 from inertia_analysis import InertiaClusterAnalysis
 from silhouette_analysis import SilhouetteClusterAnalysis
 
@@ -38,7 +38,7 @@ def load_and_prepare_data(chunk_size: int = 40, sample_size: int = 25000):
 def run_davies_bouldin_analysis(texts, max_features=2500):
     """Run Davies-Bouldin analysis."""
     print("\n=== Cross-Validated Davies-Bouldin Analysis ===")
-    analyzer = TextClusteringAnalysis()
+    analyzer = DaviesBouldinIndex()
 
     print("Processing text data...")
     X = analyzer.preprocess_text(texts, max_features=max_features)
