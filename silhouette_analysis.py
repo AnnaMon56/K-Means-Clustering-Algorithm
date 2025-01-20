@@ -13,10 +13,8 @@ class SilhouetteEvaluator:
         np.random.seed(random_state)
 
     def evaluate(self, X: np.ndarray, k_range: range) -> Dict:
-        """Evaluate K-means using Silhouette score"""
         results = defaultdict(list)
         kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
-
         for k in k_range:
             print(f"Evaluating k={k}")
             fold_scores = []
@@ -48,7 +46,6 @@ class SilhouetteEvaluator:
         return results
 
     def plot_metrics(self, results: Dict):
-        """Plot Silhouette scores"""
         plt.figure(figsize=(10, 6))
         valid_k = [k for k, s in zip(results['k_values'],
                                      results['silhouette_mean']) if s is not None]
@@ -75,7 +72,7 @@ class SilhouetteEvaluator:
         plt.show()
 
     def find_optimal_k(self, results: Dict) -> int:
-        """Find optimal K based on highest Silhouette score"""
+        #Find optimal K based on highest Silhouette score
         valid_scores = [s for s in results['silhouette_mean'] if s is not None]
         valid_std = [s for s in results['silhouette_std'] if s is not None]
         optimal_idx = np.argmax(valid_scores)

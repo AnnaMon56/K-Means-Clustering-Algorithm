@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from typing import List, Tuple
 
 class DataPreprocessor:
-    def __init__(self, max_features: int = 3000):
+    def __init__(self, max_features: int = 2800):
         self.max_features = max_features
         self.vectorizer = TfidfVectorizer(
             max_features=max_features,
@@ -15,13 +15,12 @@ class DataPreprocessor:
         )
         self.scaler = StandardScaler(with_mean=False)
 
-    def load_and_chunk(self, file_path: str, chunk_size: int = 40, sample_size: int = 25000) -> List[str]:
-        """Load text file and split into chunks"""
+    def load_and_chunk(self, file_path: str, chunk_size: int = 40, sample_size: int = 27000) -> List[str]:
         with open(file_path, 'r', encoding='utf-8') as file:
             text = file.read()
             words = text.split()
 
-            # Print initial statistics
+            # Initial statistics
             print("\nInitial Dataset Statistics:")
             print(f"Total number of words: {len(words):,}")
             print(f"Number of unique words: {len(set(words)):,}")
@@ -43,8 +42,6 @@ class DataPreprocessor:
             return texts
 
     def preprocess(self, texts: List[str]) -> np.ndarray:
-        """Convert text chunks to TF-IDF matrix and scale"""
-        # First check unlimited features
         unlimited_vectorizer = TfidfVectorizer(
             max_features=None,
             stop_words='english',
@@ -54,14 +51,12 @@ class DataPreprocessor:
         )
         X_unlimited = unlimited_vectorizer.fit_transform(texts)
 
-        # Then do the limited features
         X = self.vectorizer.fit_transform(texts)
         X_scaled = self.scaler.fit_transform(X)
 
-        # Print feature statistics
         print("\nFeature Statistics:")
-        print(f"Number of possible features: {X_unlimited.shape[1]:,}")
-        print(f"Number of features used {self.max_features:,}: {X.shape[1]:,}")
+        print(f"Number of possible features (with no limit): {X_unlimited.shape[1]:,}")
+        print(f"Number of features after limiting to {self.max_features:,}: {X.shape[1]:,}")
         print(f"Final data matrix shape: {X_scaled.shape}")
 
-        return X_scaled
+        return X_scaled.toarray() if hasattr(X_scaled, 'toarray') else X_scaled

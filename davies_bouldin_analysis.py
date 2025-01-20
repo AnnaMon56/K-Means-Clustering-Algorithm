@@ -12,8 +12,9 @@ class DaviesBouldinEvaluator:
         self.n_splits = n_splits
         np.random.seed(random_state)
 
-    def evaluate(self, X: np.ndarray, k_range: range) -> Dict:
-        """Evaluate K-means using Davies-Bouldin index"""
+    def evaluate(self, X, k_range: range) -> Dict:
+        if hasattr(X, 'toarray'):
+            X = X.toarray()
         results = defaultdict(list)
         kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
         fold_indices = list(kf.split(X))
@@ -49,7 +50,6 @@ class DaviesBouldinEvaluator:
         return results
 
     def plot_metrics(self, results: Dict):
-        """Plot Davies-Bouldin scores"""
         plt.figure(figsize=(10, 6))
         valid_k = [k for k, s in zip(results['k_values'],
                                      results['davies_bouldin_mean']) if s is not None]
@@ -71,7 +71,8 @@ class DaviesBouldinEvaluator:
         plt.show()
 
     def find_optimal_k(self, results: Dict) -> int:
-        """Find optimal K based on Davies-Bouldin scores"""
+        # Find the optimal k based on Davies-Bouldin index
+        # Using a thjreshold of 5% improvement
         valid_scores = [s for s in results['davies_bouldin_mean'] if s is not None]
         valid_std = [s for s in results['davies_bouldin_std'] if s is not None]
 

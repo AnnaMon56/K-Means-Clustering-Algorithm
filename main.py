@@ -32,15 +32,17 @@ def run_silhouette_analysis(X):
 
 def main():
     # Preprocess data
-    preprocessor = DataPreprocessor(max_features=3000)
+    preprocessor = DataPreprocessor(max_features=2800)
     texts = preprocessor.load_and_chunk('text8.txt')
     X = preprocessor.preprocess(texts)
 
-    # Run selected analyses
-    # Comment out the ones you don't want to use
-    run_inertia_analysis(X)
-    # run_silhouette_analysis(X)
-    # run_davies_bouldin_analysis(X)
+
+    # Run selected metric
+    # Commenting out metrics that aren't being used
+    #Only running Davies-Bouldin since it's the metric I'm using on my report
+    #run_inertia_analysis(X)
+    #run_silhouette_analysis(X)
+    run_davies_bouldin_analysis(X)
 
 if __name__ == "__main__":
     main()

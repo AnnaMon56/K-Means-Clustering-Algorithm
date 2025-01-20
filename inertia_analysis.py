@@ -12,7 +12,6 @@ class InertiaEvaluator:
         np.random.seed(random_state)
 
     def evaluate(self, X: np.ndarray, k_range: range) -> Dict:
-        """Evaluate K-means using Inertia (within-cluster sum of squares)"""
         results = defaultdict(list)
         kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
         fold_indices = list(kf.split(X))
@@ -34,8 +33,6 @@ class InertiaEvaluator:
                     algorithm='elkan'
                 )
                 kmeans.fit(X_train)
-
-                # Calculate inertia on validation set
                 val_inertia = -kmeans.score(X_val) * X_val.shape[0]
                 fold_scores.append(val_inertia)
 
@@ -46,7 +43,6 @@ class InertiaEvaluator:
         return results
 
     def plot_metrics(self, results: Dict):
-        """Plot Inertia scores"""
         plt.figure(figsize=(10, 6))
         plt.errorbar(results['k_values'],
                      results['inertia_mean'],
@@ -69,7 +65,8 @@ class InertiaEvaluator:
         plt.show()
 
     def find_optimal_k(self, results: Dict) -> int:
-        """Find optimal K based on inertia scores using elbow method"""
+        # Find the optimal K based on the elbow method
+        # Using a threshold of 10% improvement in inertia
         inertia = np.array(results['inertia_mean'])
         inertia_changes = np.diff(inertia) / inertia[:-1] * 100
 
